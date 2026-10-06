@@ -138,16 +138,11 @@ extern VREF_t VREF;
 
 /**
  * @brief Reset every mocked register to zero and discard the recorded delays.
- *
- *        Call this at the start of each test case, so that state does not leak between tests.
  */
 void testHwPlatformReset(void);
 
 /**
  * @brief Get the number of delay_ms calls made since the last reset.
- *
- *        The mocked delay_ms records the duration it was asked for rather than sleeping, so a
- *        test can check how long a driver intended to wait without waiting itself.
  *
  * @return Number of calls.
  */
