@@ -26,12 +26,15 @@ constexpr std::uint16_t UnrecordedDelay{1000U};
 constexpr std::uint16_t OneDelay{1U};
 constexpr std::uint16_t TwoDelays{2U};
 
+/** Counter top value producing a one millisecond tick at 4 MHz with a /2 prescaler. */
+constexpr std::uint16_t TimerPeriod{1999U};
+
 /** An arbitrary non-zero conversion, written to check that a reset clears the register. */
 constexpr std::uint16_t SomeConversion{1234U};
 } // namespace
 
 /**
- * @brief Test that the mocked registers start out cleared.
+ * @brief Test that a reset clears the mocked registers.
  */
 TEST(HwPlatform, ResetClearsRegisters)
 {
@@ -126,15 +129,17 @@ TEST(HwPlatform, ReadingAnUnrecordedDelayReturnsZero)
 }
 
 /**
- * @brief Test that resetting the platform clears the analog peripherals too.
+ * @brief Test that resetting the platform clears the analog and timer peripherals too.
  */
-TEST(HwPlatform, ResetClearsTheAnalogPeripherals)
+TEST(HwPlatform, ResetClearsTheAnalogAndTimerPeripherals)
 {
     ADC0.MUXPOS    = ADC_MUXPOS_AIN4_gc;
     ADC0.RES       = SomeConversion;
     VREF.ADC0REF   = VREF_REFSEL_VDD_gc;
     DAC0.CTRLA     = DAC_ENABLE_bm;
     DAC0.DATA      = SomeConversion;
+    TCB0.CCMP      = TimerPeriod;
+    TCB2.CTRLA     = TCB_ENABLE_bm;
     PORTD.PIN7CTRL = PORT_PULLUPEN_bm;
 
     testHwPlatformReset();
@@ -143,6 +148,8 @@ TEST(HwPlatform, ResetClearsTheAnalogPeripherals)
     EXPECT_EQ(VREF.ADC0REF, Zero);
     EXPECT_EQ(DAC0.CTRLA, Zero);
     EXPECT_EQ(DAC0.DATA, Zero);
+    EXPECT_EQ(TCB0.CCMP, Zero);
+    EXPECT_EQ(TCB2.CTRLA, Zero);
     EXPECT_EQ(PORTD.PIN7CTRL, Zero);
 }
 
@@ -199,6 +206,19 @@ TEST(HwPlatform, PinPositionsMatchPinMasks)
     EXPECT_EQ(mask5, PIN5_bm);
     EXPECT_EQ(mask6, PIN6_bm);
     EXPECT_EQ(mask7, PIN7_bm);
+}
+
+/**
+ * @brief Test that the three timer circuits are distinct objects.
+ */
+TEST(HwPlatform, TimerCircuitsAreDistinct)
+{
+    testHwPlatformReset();
+    TCB1.CCMP = TimerPeriod;
+
+    EXPECT_EQ(TCB1.CCMP, TimerPeriod);
+    EXPECT_EQ(TCB0.CCMP, Zero);
+    EXPECT_EQ(TCB2.CCMP, Zero);
 }
 
 /**
