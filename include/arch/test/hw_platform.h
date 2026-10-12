@@ -50,6 +50,20 @@ typedef struct
     volatile uint16_t RES;     /* Result. */
 } ADC_t;
 
+/** 16-bit timer type B. */
+typedef struct
+{
+    volatile uint8_t CTRLA;    /* Control A. */
+    volatile uint8_t CTRLB;    /* Control B. */
+    volatile uint8_t EVCTRL;   /* Event control. */
+    volatile uint8_t INTCTRL;  /* Interrupt control. */
+    volatile uint8_t INTFLAGS; /* Interrupt flags. */
+    volatile uint8_t STATUS;   /* Status. */
+    volatile uint8_t DBGCTRL;  /* Debug control. */
+    volatile uint16_t CNT;     /* Count. */
+    volatile uint16_t CCMP;    /* Compare or capture. */
+} TCB_t;
+
 /** Digital to analog converter. */
 typedef struct
 {
@@ -72,6 +86,9 @@ extern PORT_t PORTD;
 extern PORT_t PORTF;
 extern ADC_t ADC0;
 extern DAC_t DAC0;
+extern TCB_t TCB0;
+extern TCB_t TCB1;
+extern TCB_t TCB2;
 extern VREF_t VREF;
 
 /* Pin bit masks. */
@@ -127,6 +144,15 @@ extern VREF_t VREF;
 #define DAC_ENABLE_bm 0x01
 #define DAC_OUTEN_bm 0x40
 #define DAC_DATA_gp 6
+
+/* TCB bit masks and group configurations. */
+#define TCB_ENABLE_bm 0x01
+#define TCB_RUN_bm 0x01
+#define TCB_CAPT_bm 0x01
+#define TCB_OVF_bm 0x02
+#define TCB_CNTMODE_INT_gc (0x00 << 0)
+#define TCB_CLKSEL_DIV1_gc (0x00 << 1)
+#define TCB_CLKSEL_DIV2_gc (0x01 << 1)
 
 /* VREF bit masks and group configurations. */
 #define VREF_ALWAYSON_bm 0x80

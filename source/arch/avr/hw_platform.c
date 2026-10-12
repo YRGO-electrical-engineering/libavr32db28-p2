@@ -1,8 +1,5 @@
 /**
  * @file Hardware platform implementation details for AVR32DB28.
- *
- *        Compiled for the target only. The test suite links the mocked platform in
- *        source/arch/test instead, so this file is excluded from the host build.
  */
 #ifndef TESTSUITE
 

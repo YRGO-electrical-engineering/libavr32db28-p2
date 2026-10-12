@@ -16,6 +16,9 @@ PORT_t PORTD;
 PORT_t PORTF;
 ADC_t ADC0;
 DAC_t DAC0;
+TCB_t TCB0;
+TCB_t TCB1;
+TCB_t TCB2;
 VREF_t VREF;
 
 /** Durations passed to delay_ms, and the number of calls made since the last reset. */
@@ -32,6 +35,9 @@ void testHwPlatformReset(void)
 
     memset((void*)&ADC0, 0, sizeof(ADC0));
     memset((void*)&DAC0, 0, sizeof(DAC0));
+    memset((void*)&TCB0, 0, sizeof(TCB0));
+    memset((void*)&TCB1, 0, sizeof(TCB1));
+    memset((void*)&TCB2, 0, sizeof(TCB2));
     memset((void*)&VREF, 0, sizeof(VREF));
 
     memset(delays, 0, sizeof(delays));
