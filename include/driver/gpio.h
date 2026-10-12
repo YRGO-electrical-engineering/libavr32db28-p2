@@ -8,18 +8,10 @@
  * @brief Enumeration of GPIO pins.
  *
  * @note Every pin can be used as a digital input or output. Only the pins marked below can be
- *       used with the analog driver.
+ *       used with the analog driver. I/O port A is reserved for the display.
  */
 typedef enum
 {
-    GPIO_PIN_PA0, ///< Pin 0 on I/O port A.
-    GPIO_PIN_PA1, ///< Pin 1 on I/O port A.
-    GPIO_PIN_PA2, ///< Pin 2 on I/O port A.
-    GPIO_PIN_PA3, ///< Pin 3 on I/O port A.
-    GPIO_PIN_PA4, ///< Pin 4 on I/O port A.
-    GPIO_PIN_PA5, ///< Pin 5 on I/O port A.
-    GPIO_PIN_PA6, ///< Pin 6 on I/O port A.
-    GPIO_PIN_PA7, ///< Pin 7 on I/O port A.
     GPIO_PIN_PC0, ///< Pin 0 on I/O port C.
     GPIO_PIN_PC1, ///< Pin 1 on I/O port C.
     GPIO_PIN_PC2, ///< Pin 2 on I/O port C.
