@@ -42,9 +42,7 @@ static inline bool pin_valid(const uint8_t pin)
 // -----------------------------------------------------------------------------
 static inline bool mode_valid(const gpio_mode_t mode)
 {
-    const uint8_t max = (uint8_t)(GPIO_MODE_OUT);
-    const uint8_t val = (uint8_t)(mode);
-    return max >= val;
+    return (GPIO_MODE_IN == mode) || (GPIO_MODE_OUT == mode);
 }
 
 // -----------------------------------------------------------------------------
@@ -75,11 +73,23 @@ static inline volatile uint8_t* get_pinctrl(const pin_hw_t* hw)
 }
 
 // -----------------------------------------------------------------------------
-static inline bool is_output(const pin_hw_t* hw)
+static inline uint8_t get_mask(const pin_hw_t* hw) { return (uint8_t)(1U << hw->bit); }
+
+// -----------------------------------------------------------------------------
+static inline bool value_valid(const uint16_t value) { return VALUE_MAX >= value; }
+
+// -----------------------------------------------------------------------------
+static inline bool mode_supported(const pin_hw_t* hw, const gpio_mode_t mode)
 {
-    const bool enabled = (bool)(DAC0.CTRLA & DAC_OUTEN_bm);
-    return hw->dac && enabled;
+    // Every pin can be an input, but only the pin connected to the DAC can be an output.
+    return (GPIO_MODE_IN == mode) || hw->dac;
 }
+
+// -----------------------------------------------------------------------------
+static inline bool dac_enabled(void) { return (bool)(DAC0.CTRLA & DAC_OUTEN_bm); }
+
+// -----------------------------------------------------------------------------
+static inline bool is_output(const pin_hw_t* hw) { return hw->dac && dac_enabled(); }
 
 // -----------------------------------------------------------------------------
 static inline bool is_input(const pin_hw_t* hw)
@@ -94,7 +104,7 @@ static inline bool is_input(const pin_hw_t* hw)
 static inline void init_pin(const pin_hw_t* hw)
 {
     // Stop driving the pin, then disable its digital input buffer; it carries a voltage now.
-    hw->port->DIR &= ~(1U << hw->bit);
+    hw->port->DIR &= ~get_mask(hw);
     *get_pinctrl(hw) = PORT_ISC_INPUT_DISABLE_gc;
 }
 
@@ -123,17 +133,52 @@ static inline void init_dac(void)
 }
 
 // -----------------------------------------------------------------------------
-static inline void conf_pin(const pin_hw_t* hw, const bool output)
+static inline void release_dac(const pin_hw_t* hw)
+{
+    // Disconnect the DAC from the pin, if this is the pin it drives.
+    if (hw->dac) { DAC0.CTRLA = 0U; }
+}
+
+// -----------------------------------------------------------------------------
+static inline void conf_pin(const pin_hw_t* hw, const gpio_mode_t mode)
 {
     init_pin(hw);
 
     // Configure the pin as specified, releasing it from the DAC if it is to be an input.
-    if (output) { init_dac(); }
+    if (GPIO_MODE_OUT == mode) { init_dac(); }
     else
     {
-        if (hw->dac) { DAC0.CTRLA = 0U; }
+        release_dac(hw);
         init_adc();
     }
+}
+
+// -----------------------------------------------------------------------------
+static inline void start_conversion(const pin_hw_t* hw)
+{
+    // Select the input and start a conversion.
+    ADC0.MUXPOS  = hw->muxpos;
+    ADC0.COMMAND = ADC_STCONV_bm;
+}
+
+// -----------------------------------------------------------------------------
+static inline bool conversion_done(void) { return (bool)(ADC0.INTFLAGS & ADC_RESRDY_bm); }
+
+// -----------------------------------------------------------------------------
+static inline uint16_t read_result(void)
+{
+    // Read the result before lowering the flag; reading is itself one way to clear it.
+    const uint16_t result = ADC0.RES;
+    ADC0.INTFLAGS         = ADC_RESRDY_bm;
+    return result;
+}
+
+// -----------------------------------------------------------------------------
+static inline uint16_t get_dac_data(const uint16_t value)
+{
+    // Scale the value to the 10 bits of the DAC, which are the upper bits of its data register.
+    const uint16_t shifted = (uint16_t)(value >> DAC_SHIFT);
+    return (uint16_t)(shifted << DAC_DATA_gp);
 }
 
 // -----------------------------------------------------------------------------
@@ -142,11 +187,9 @@ bool analog_init(const uint8_t pin, const gpio_mode_t mode)
     if (!mode_valid(mode)) { return false; }
     const pin_hw_t* hw = get_hw(pin);
     if (NULL == hw) { return false; }
+    if (!mode_supported(hw, mode)) { return false; }
 
-    // Only the pin connected to the DAC can be used as an output.
-    const bool output = (GPIO_MODE_OUT == mode);
-    if (output && !hw->dac) { return false; }
-    conf_pin(hw, output);
+    conf_pin(hw, mode);
     return true;
 }
 
@@ -157,20 +200,12 @@ uint16_t analog_read(const uint8_t pin)
     if (NULL == hw) { return ANALOG_READ_ERROR; }
     if (!is_input(hw)) { return ANALOG_READ_ERROR; }
 
-    // Select the input and start a conversion.
-    ADC0.MUXPOS  = hw->muxpos;
-    ADC0.COMMAND = ADC_STCONV_bm;
+    start_conversion(hw);
 
     // Wait for the result, but give up eventually so a silent ADC can't stop the program.
     for (uint16_t i = 0U; i < CONVERSION_TIMEOUT; ++i)
     {
-        if (ADC0.INTFLAGS & ADC_RESRDY_bm)
-        {
-            // Read the result before lowering the flag; reading is itself one way to clear it.
-            const uint16_t result = ADC0.RES;
-            ADC0.INTFLAGS         = ADC_RESRDY_bm;
-            return result;
-        }
+        if (conversion_done()) { return read_result(); }
     }
     return ANALOG_READ_ERROR;
 }
@@ -181,10 +216,8 @@ bool analog_write(const uint8_t pin, const uint16_t value)
     const pin_hw_t* hw = get_hw(pin);
     if (NULL == hw) { return false; }
     if (!is_output(hw)) { return false; }
-    if (VALUE_MAX < value) { return false; }
+    if (!value_valid(value)) { return false; }
 
-    // Scale the value to the 10 bits of the DAC, which are the upper bits of its data register.
-    const uint16_t shifted = (uint16_t)(value >> DAC_SHIFT);
-    DAC0.DATA              = (uint16_t)(shifted << DAC_DATA_gp);
+    DAC0.DATA = get_dac_data(value);
     return true;
 }

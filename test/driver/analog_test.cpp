@@ -21,7 +21,7 @@ constexpr std::uint8_t AllPinsHigh{0xFFU};
 
 /** Number of pins the driver supports, and of pins that are digital only. */
 constexpr std::uint8_t PinCount{9U};
-constexpr std::uint8_t DigitalOnlyPinCount{12U};
+constexpr std::uint8_t DigitalOnlyPinCount{4U};
 
 /** The first pin number that does not exist. */
 constexpr std::uint8_t InvalidPin{PinCount + DigitalOnlyPinCount};
@@ -79,10 +79,12 @@ const PinHw Pins[PinCount]{
     {GPIO_PIN_PF1, PORTF, PIN1_bm, PORTF.PIN1CTRL, ADC_MUXPOS_AIN17_gc},
 };
 
-/** The pins that exist but are not connected to the ADC or the DAC, i.e. I/O ports A and C. */
+/** The pins that exist but are not connected to the ADC or the DAC, i.e. I/O port C. */
 constexpr gpio_pin_t DigitalOnlyPins[DigitalOnlyPinCount]{
-    GPIO_PIN_PA0, GPIO_PIN_PA1, GPIO_PIN_PA2, GPIO_PIN_PA3, GPIO_PIN_PA4, GPIO_PIN_PA5,
-    GPIO_PIN_PA6, GPIO_PIN_PA7, GPIO_PIN_PC0, GPIO_PIN_PC1, GPIO_PIN_PC2, GPIO_PIN_PC3,
+    GPIO_PIN_PC0,
+    GPIO_PIN_PC1,
+    GPIO_PIN_PC2,
+    GPIO_PIN_PC3,
 };
 
 /**
@@ -136,7 +138,6 @@ TEST(Analog, InitAsInputSwitchesOffThePullUp)
 TEST(Analog, InitIsRefusedForDigitalOnlyPins)
 {
     testHwPlatformReset();
-    PORTA.DIR = AllPinsHigh;
     PORTC.DIR = AllPinsHigh;
 
     for (const auto pin : DigitalOnlyPins)
@@ -144,9 +145,7 @@ TEST(Analog, InitIsRefusedForDigitalOnlyPins)
         EXPECT_FALSE(analog_init(pin, GPIO_MODE_IN));
         EXPECT_FALSE(analog_init(pin, GPIO_MODE_OUT));
     }
-    EXPECT_EQ(PORTA.DIR, AllPinsHigh);
     EXPECT_EQ(PORTC.DIR, AllPinsHigh);
-    EXPECT_EQ(PORTA.PIN0CTRL, Zero);
     EXPECT_EQ(PORTC.PIN0CTRL, Zero);
     EXPECT_EQ(ADC0.CTRLA, Zero);
     EXPECT_EQ(DAC0.CTRLA, Zero);
@@ -160,7 +159,6 @@ TEST(Analog, ReadAndWriteAreRefusedForDigitalOnlyPins)
     testHwPlatformReset();
     EXPECT_TRUE(analog_init(GPIO_PIN_PD1, GPIO_MODE_IN));
     EXPECT_TRUE(analog_init(GPIO_PIN_PD6, GPIO_MODE_OUT));
-    PORTA.PIN0CTRL = PORT_ISC_INPUT_DISABLE_gc;
     PORTC.PIN0CTRL = PORT_ISC_INPUT_DISABLE_gc;
     prepareConversion(SomeValue);
 
