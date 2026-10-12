@@ -37,19 +37,13 @@ static inline bool pin_valid(const uint8_t pin)
 // -----------------------------------------------------------------------------
 static inline bool mode_valid(const gpio_mode_t mode)
 {
-    const uint8_t max = (uint8_t)(GPIO_MODE_OUT);
-    const uint8_t val = (uint8_t)(mode);
-    return max >= val;
+    return (GPIO_MODE_IN == mode) || (GPIO_MODE_OUT == mode);
 }
 
 // -----------------------------------------------------------------------------
 static inline const pin_hw_t* get_hw(const uint8_t pin)
 {
     static const pin_hw_t pins[] = {
-        {&PORTA, PIN0_bp, PIN0_bm, false}, {&PORTA, PIN1_bp, PIN1_bm, false},
-        {&PORTA, PIN2_bp, PIN2_bm, false}, {&PORTA, PIN3_bp, PIN3_bm, false},
-        {&PORTA, PIN4_bp, PIN4_bm, false}, {&PORTA, PIN5_bp, PIN5_bm, false},
-        {&PORTA, PIN6_bp, PIN6_bm, false}, {&PORTA, PIN7_bp, PIN7_bm, false},
         {&PORTC, PIN0_bp, PIN0_bm, false}, {&PORTC, PIN1_bp, PIN1_bm, false},
         {&PORTC, PIN2_bp, PIN2_bm, false}, {&PORTC, PIN3_bp, PIN3_bm, false},
         {&PORTD, PIN1_bp, PIN1_bm, false}, {&PORTD, PIN2_bp, PIN2_bm, false},
@@ -71,16 +65,40 @@ static inline bool read_output(const pin_hw_t* hw) { return (bool)(hw->port->OUT
 static inline bool read_input(const pin_hw_t* hw) { return (bool)(hw->port->IN & hw->mask); }
 
 // -----------------------------------------------------------------------------
+static inline volatile uint8_t* get_pinctrl(const pin_hw_t* hw)
+{
+    // The pin control registers lie one after another, starting with the one for pin 0.
+    return &hw->port->PIN0CTRL + hw->bit;
+}
+
+// -----------------------------------------------------------------------------
 static inline void claim_pin(const pin_hw_t* hw)
 {
     // Disconnect the DAC from the pin, in case the analog driver used the pin as an output.
     if (hw->dac) { DAC0.CTRLA = 0U; }
 
-    // Enable the digital input buffer; the analog driver disables it. The pin control
-    // registers lie one after another, starting with the one for pin 0.
-    volatile uint8_t* pinctrl = &hw->port->PIN0CTRL + hw->bit;
-    *pinctrl &= ~PORT_ISC_gm;
+    // Enable the digital input buffer; the analog driver disables it.
+    *get_pinctrl(hw) &= ~PORT_ISC_gm;
 }
+
+// -----------------------------------------------------------------------------
+static inline void set_direction(const pin_hw_t* hw, const gpio_mode_t mode)
+{
+    // Configure the pin direction as specified.
+    if (GPIO_MODE_OUT == mode) { hw->port->DIR |= hw->mask; }
+    else { hw->port->DIR &= ~hw->mask; }
+}
+
+// -----------------------------------------------------------------------------
+static inline void write_output(const pin_hw_t* hw, const bool state)
+{
+    // Set pin state as specified.
+    if (state) { hw->port->OUTSET = hw->mask; }
+    else { hw->port->OUTCLR = hw->mask; }
+}
+
+// -----------------------------------------------------------------------------
+static inline void toggle_output(const pin_hw_t* hw) { hw->port->OUTTGL = hw->mask; }
 
 // -----------------------------------------------------------------------------
 bool digital_init(const uint8_t pin, const gpio_mode_t mode)
@@ -89,11 +107,9 @@ bool digital_init(const uint8_t pin, const gpio_mode_t mode)
     const pin_hw_t* hw = get_hw(pin);
     if (NULL == hw) { return false; }
 
+    // Take the pin from the analog driver, then configure its direction as specified.
     claim_pin(hw);
-
-    // Configure the pin direction as specified.
-    if (GPIO_MODE_OUT == mode) { hw->port->DIR |= hw->mask; }
-    else { hw->port->DIR &= ~hw->mask; }
+    set_direction(hw, mode);
     return true;
 }
 
@@ -114,9 +130,7 @@ bool digital_write(const uint8_t pin, const bool state)
     if (NULL == hw) { return false; }
     if (!is_output(hw)) { return false; }
 
-    // Set pin state as specified.
-    if (state) { hw->port->OUTSET = hw->mask; }
-    else { hw->port->OUTCLR = hw->mask; }
+    write_output(hw, state);
     return true;
 }
 
@@ -127,7 +141,6 @@ bool digital_toggle(const uint8_t pin)
     if (NULL == hw) { return false; }
     if (!is_output(hw)) { return false; }
 
-    // Toggle the pin.
-    hw->port->OUTTGL = hw->mask;
+    toggle_output(hw);
     return true;
 }

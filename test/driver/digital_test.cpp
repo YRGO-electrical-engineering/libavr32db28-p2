@@ -20,7 +20,7 @@ constexpr std::uint8_t Zero{0U};
 constexpr std::uint8_t AllPinsHigh{0xFFU};
 
 /** Number of pins the driver supports, and the first pin number that does not exist. */
-constexpr std::uint8_t PinCount{21U};
+constexpr std::uint8_t PinCount{13U};
 constexpr std::uint8_t InvalidPin{PinCount};
 
 /** Number of the last pin, the pins being numbered from zero. */
@@ -58,10 +58,6 @@ struct PinHw
 
 /** Every pin of the driver, along with the hardware it is expected to use. */
 const PinHw Pins[PinCount]{
-    {GPIO_PIN_PA0, PORTA, PIN0_bm, PORTA.PIN0CTRL}, {GPIO_PIN_PA1, PORTA, PIN1_bm, PORTA.PIN1CTRL},
-    {GPIO_PIN_PA2, PORTA, PIN2_bm, PORTA.PIN2CTRL}, {GPIO_PIN_PA3, PORTA, PIN3_bm, PORTA.PIN3CTRL},
-    {GPIO_PIN_PA4, PORTA, PIN4_bm, PORTA.PIN4CTRL}, {GPIO_PIN_PA5, PORTA, PIN5_bm, PORTA.PIN5CTRL},
-    {GPIO_PIN_PA6, PORTA, PIN6_bm, PORTA.PIN6CTRL}, {GPIO_PIN_PA7, PORTA, PIN7_bm, PORTA.PIN7CTRL},
     {GPIO_PIN_PC0, PORTC, PIN0_bm, PORTC.PIN0CTRL}, {GPIO_PIN_PC1, PORTC, PIN1_bm, PORTC.PIN1CTRL},
     {GPIO_PIN_PC2, PORTC, PIN2_bm, PORTC.PIN2CTRL}, {GPIO_PIN_PC3, PORTC, PIN3_bm, PORTC.PIN3CTRL},
     {GPIO_PIN_PD1, PORTD, PIN1_bm, PORTD.PIN1CTRL}, {GPIO_PIN_PD2, PORTD, PIN2_bm, PORTD.PIN2CTRL},
@@ -214,16 +210,37 @@ TEST(Digital, InitTakesThePinFromTheAnalogOutput)
  */
 TEST(Digital, InitKeepsTheOtherPinsOfThePort)
 {
-    constexpr std::uint8_t outputs{static_cast<std::uint8_t>(PIN0_bm | PIN7_bm)};
+    constexpr std::uint8_t outputs{static_cast<std::uint8_t>(PIN1_bm | PIN7_bm)};
 
     testHwPlatformReset();
-    EXPECT_TRUE(digital_init(GPIO_PIN_PA0, GPIO_MODE_OUT));
-    EXPECT_TRUE(digital_init(GPIO_PIN_PA7, GPIO_MODE_OUT));
-    EXPECT_TRUE(digital_init(GPIO_PIN_PA3, GPIO_MODE_IN));
-    EXPECT_EQ(PORTA.DIR, outputs);
+    EXPECT_TRUE(digital_init(GPIO_PIN_PD1, GPIO_MODE_OUT));
+    EXPECT_TRUE(digital_init(GPIO_PIN_PD7, GPIO_MODE_OUT));
+    EXPECT_TRUE(digital_init(GPIO_PIN_PD3, GPIO_MODE_IN));
+    EXPECT_EQ(PORTD.DIR, outputs);
 
-    EXPECT_TRUE(digital_init(GPIO_PIN_PA0, GPIO_MODE_IN));
-    EXPECT_EQ(PORTA.DIR, PIN7_bm);
+    EXPECT_TRUE(digital_init(GPIO_PIN_PD1, GPIO_MODE_IN));
+    EXPECT_EQ(PORTD.DIR, PIN7_bm);
+}
+
+/**
+ * @brief Test that no pin reaches I/O port A, which is reserved for the display.
+ */
+TEST(Digital, PortAIsLeftToTheDisplay)
+{
+    testHwPlatformReset();
+
+    for (const auto& hw : Pins)
+    {
+        EXPECT_TRUE(digital_init(hw.pin, GPIO_MODE_OUT));
+        EXPECT_TRUE(digital_write(hw.pin, true));
+        EXPECT_TRUE(digital_write(hw.pin, false));
+        EXPECT_TRUE(digital_toggle(hw.pin));
+        EXPECT_TRUE(digital_init(hw.pin, GPIO_MODE_IN));
+        EXPECT_NE(&hw.port, &PORTA);
+    }
+    const auto portAWrites =
+        static_cast<std::uint8_t>(PORTA.DIR | PORTA.OUTSET | PORTA.OUTCLR | PORTA.OUTTGL);
+    EXPECT_EQ(portAWrites, Zero);
 }
 
 /**
@@ -267,7 +284,7 @@ TEST(Digital, InitRejectsInvalidArguments)
     testHwPlatformReset();
     EXPECT_FALSE(digital_init(InvalidPin, GPIO_MODE_OUT));
     EXPECT_FALSE(digital_init(AllPinsHigh, GPIO_MODE_OUT));
-    EXPECT_FALSE(digital_init(GPIO_PIN_PA0, InvalidMode));
+    EXPECT_FALSE(digital_init(GPIO_PIN_PC0, InvalidMode));
 
     const auto directions =
         static_cast<std::uint8_t>(PORTA.DIR | PORTC.DIR | PORTD.DIR | PORTF.DIR);
