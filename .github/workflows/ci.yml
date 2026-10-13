@@ -1,0 +1,62 @@
+# Set pipeline name.
+name: CI
+
+# Set pipeline triggers.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Pin the device family pack, so the pipeline and local builds use identical headers.
+env:
+  DFP_VERSION: 1.10.114
+
+# Define pipeline jobs.
+jobs:
+  # Cross-compile the AVR32DB28 firmware, run on latest Ubuntu runner.
+  build-firmware:
+    name: Build firmware
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install AVR toolchain
+        run: sudo apt-get update && sudo apt-get install -y gcc-avr binutils-avr avr-libc
+      - name: Cache device family pack
+        id: cache-dfp
+        uses: actions/cache@v4
+        with:
+          path: dfp
+          key: avr-dx-dfp-${{ env.DFP_VERSION }}
+      - name: Download device family pack
+        if: steps.cache-dfp.outputs.cache-hit != 'true'
+        run: |
+          wget -q "http://packs.download.atmel.com/Atmel.AVR-Dx_DFP.${DFP_VERSION}.atpack"
+          unzip -q -d dfp "Atmel.AVR-Dx_DFP.${DFP_VERSION}.atpack"
+      - name: Build
+        run: make build
+
+  # Build and run the host test suite, run on latest Ubuntu runner.
+  run-tests:
+    name: Run test suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Test
+        run: make test
+
+  # Check code formatting, run on latest Ubuntu runner.
+  format-check:
+    name: Check formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+      - name: Check formatting
+        run: make format-check
