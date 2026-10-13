@@ -21,7 +21,7 @@ MCU="avr32db28"
 BUILD_DIR="$ROOT_DIR/build"
 TARGET="$BUILD_DIR/main.elf"
 
-# CPU frequency in Hz. The OSCHF reset default; see avr32db28-registers.md section 2.
+# CPU frequency in Hz. The OSCHF reset default.
 F_CPU=4000000UL
 
 # Fallback locations of the device family pack on a local Atmel/Microchip Studio installation.
@@ -35,6 +35,7 @@ LOCAL_DFPS=(
 ################################################################################
 # Print the directory holding the AVR-Dx device family pack, or terminate the
 # script if no pack can be found.
+#
 # Globals:
 #   ROOT_DIR
 #   LOCAL_DFPS
@@ -62,6 +63,7 @@ resolve_dfp_dir() {
 
 ################################################################################
 # Terminate the script if avr-gcc is not installed.
+#
 # Globals:
 #   None
 # Arguments:
@@ -78,7 +80,8 @@ check_avr_gcc() {
 ################################################################################
 # Find the firmware source files and store them in the given array. The mocked
 # hardware platform in source/arch/test is excluded: it exists only for the host
-# test suite and does not compile for the target.
+# test suite and is empty unless TESTSUITE is defined.
+#
 # Globals:
 #   ROOT_DIR
 # Arguments:
@@ -90,23 +93,67 @@ select_sources() {
     out+=("main.c")
 }
 
-# Navigate to the root directory.
-cd "$ROOT_DIR"
-
-# Check that the toolchain and the device pack are available.
-check_avr_gcc
-DFP="$(resolve_dfp_dir)"
-
-# Select the firmware sources.
-select_sources SOURCES
-
+################################################################################
 # Build the firmware.
-mkdir -p "$BUILD_DIR"
-echo "Building $MCU firmware with DFP $DFP"
-avr-gcc -mmcu="$MCU" -B "$DFP/gcc/dev/$MCU" -I "$DFP/include" -I include \
-    -Os -std=c11 -Wall -Wextra -Werror -DF_CPU="$F_CPU" \
-    -o "$TARGET" "${SOURCES[@]}"
+#
+# Globals:
+#   BUILD_DIR
+#   MCU
+#   F_CPU
+#   TARGET
+# Arguments:
+#   $1 - Directory holding the device family pack.
+#   $@ - Source files to compile.
+################################################################################
+build() {
+    local dfp=$1
+    shift
 
+    mkdir -p "$BUILD_DIR"
+    echo "Building $MCU firmware with DFP $dfp"
+    avr-gcc -mmcu="$MCU" -B "$dfp/gcc/dev/$MCU" -I "$dfp/include" -I include \
+        -Os -std=c11 -Wall -Wextra -Werror -DF_CPU="$F_CPU" \
+        -o "$TARGET" "$@"
+}
+
+################################################################################
 # Generate a flashable hex file and report the size.
-avr-objcopy -O ihex -R .eeprom "$TARGET" "$BUILD_DIR/main.hex"
-avr-size "$TARGET"
+#
+# Globals:
+#   BUILD_DIR
+#   TARGET
+# Arguments:
+#   None
+################################################################################
+flash() {
+    avr-objcopy -O ihex -R .eeprom "$TARGET" "$BUILD_DIR/main.hex"
+    avr-size "$TARGET"
+}
+
+################################################################################
+# Run the script.
+#
+# Globals:
+#   ROOT_DIR
+# Arguments:
+#   None
+################################################################################
+main() {
+    local dfp
+    local sources
+
+    # Navigate to the root directory.
+    cd "$ROOT_DIR"
+
+    # Check that the toolchain and the device pack are available.
+    check_avr_gcc
+    dfp="$(resolve_dfp_dir)"
+
+    # Select the firmware sources.
+    select_sources sources
+
+    build "$dfp" "${sources[@]}"
+    flash
+}
+
+main "$@"
