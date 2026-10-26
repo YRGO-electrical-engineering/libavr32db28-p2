@@ -179,7 +179,7 @@ TEST(Analog, InitAsInputPreparesTheAdc)
     testHwPlatformReset();
     EXPECT_TRUE(analog_init(GPIO_PIN_PD1, GPIO_MODE_IN));
 
-    EXPECT_EQ(VREF.ADC0REF, VREF_REFSEL_VDD_gc);
+    EXPECT_EQ(VREF.ADC0REF, VREF_REFSEL_2V500_gc);
     EXPECT_EQ(ADC0.CTRLC, ADC_PRESC_DIV4_gc);
     EXPECT_EQ(ADC0.SAMPCTRL, SampleLength);
     EXPECT_EQ(ADC0.CTRLA, AdcEnabled);
@@ -204,7 +204,7 @@ TEST(Analog, InitAsInputLeavesTheRestUntouched)
 }
 
 /**
- * @brief Test that initializing PD6 as an output enables the DAC against the supply voltage.
+ * @brief Test that initializing PD6 as an output enables the DAC against the 2.5 V reference.
  */
 TEST(Analog, InitAsOutputEnablesTheDac)
 {
@@ -214,7 +214,7 @@ TEST(Analog, InitAsOutputEnablesTheDac)
     PORTD.DIR = AllPinsHigh;
     EXPECT_TRUE(analog_init(GPIO_PIN_PD6, GPIO_MODE_OUT));
 
-    EXPECT_EQ(VREF.DAC0REF, VREF_REFSEL_VDD_gc);
+    EXPECT_EQ(VREF.DAC0REF, VREF_REFSEL_2V500_gc);
     EXPECT_EQ(DAC0.CTRLA, DacEnabled);
     EXPECT_EQ(DAC0.DATA, Zero);
     EXPECT_EQ(PORTD.DIR, released);
