@@ -111,8 +111,8 @@ static inline void init_pin(const pin_hw_t* hw)
 // -----------------------------------------------------------------------------
 static inline void init_adc(void)
 {
-    // Measure against the internal 2.5 V reference, so that a full reading means 2.5 V.
-    VREF.ADC0REF = VREF_REFSEL_2V500_gc;
+    // Measure against the supply voltage, so that a full reading means 5 V.
+    VREF.ADC0REF = VREF_REFSEL_VDD_gc;
 
     // Clock the ADC at 1 MHz and sample for longer than the default, for high-impedance sources.
     ADC0.CTRLC    = ADC_PRESC_DIV4_gc;
@@ -125,8 +125,8 @@ static inline void init_adc(void)
 // -----------------------------------------------------------------------------
 static inline void init_dac(void)
 {
-    // Output against the internal 2.5 V reference, so that a full value means 2.5 V.
-    VREF.DAC0REF = VREF_REFSEL_2V500_gc;
+    // Output against the supply voltage, so that a full value means 5 V.
+    VREF.DAC0REF = VREF_REFSEL_VDD_gc;
 
     // Enable the DAC and connect its output to the pin.
     DAC0.CTRLA = DAC_ENABLE_bm | DAC_OUTEN_bm;

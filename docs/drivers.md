@@ -84,12 +84,9 @@ Inverts the pin. Refuses the same pins `digital_write()` does.
 ---
 
 ## Analog
-Values are 12 bits wide in both directions, measured against the device's internal 2.5 V
-reference: 0 is 0 V and 4095 is just under 2.5 V. One step is about 0.61 mV, and a value converts
-to millivolts as `value * 2500 / 4096`, calculated in 32 bits.
-
-**An input above 2.5 V reads as 4095.** A sensor or potentiometer powered from 5 V needs a voltage
-divider to be measured over its whole range.
+Values are 12 bits wide in both directions: 0 is 0 V and 4095 is just under the 5 V supply. One
+step is about 1.2 mV, and a value converts to millivolts as `value * 5000 / 4096`, calculated in
+32 bits.
 
 ```c
 bool analog_init(uint8_t pin, gpio_mode_t mode);
